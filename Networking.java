@@ -1,9 +1,11 @@
 package ua.prog.java.lesson11a;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
@@ -15,9 +17,19 @@ import java.util.Map;
 import java.util.Set;
 
 public class Networking {
+	private String siteProtocol;
+	private String siteHost;
 
 	public Networking() {
 
+	}
+
+	public String getSiteProtocol() {
+		return siteProtocol;
+	}
+
+	public String getSiteHost() {
+		return siteHost;
 	}
 
 	private List<String> getLinksFromFile(String filePath) {
@@ -31,6 +43,12 @@ public class Networking {
 			ex.printStackTrace();
 		}
 		return linksList;
+	}
+
+	public void checkSitesAvailability(String filePath) {
+		for (String linkToSite : getLinksFromFile(filePath)) {
+			isSiteAvailable(linkToSite);
+		}
 	}
 
 	public void getHeaders(URLConnection urlC) {
@@ -67,6 +85,8 @@ public class Networking {
 		try {
 			System.out.println("\nChecked Site: " + siteLink);
 			URL url = new URL(siteLink);
+			siteProtocol = url.getProtocol();
+			siteHost = url.getHost();
 			HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
 			System.out.println("  Site is available;\n  ResponceCode: " + urlConnection.getResponseCode());
 			System.out.println("  ResponceMessage: " + urlConnection.getResponseMessage());
@@ -77,9 +97,45 @@ public class Networking {
 		return true;
 	}
 
-	public void checkSitesLinks(String filePath) {
-		for (String linkToSite : getLinksFromFile(filePath)) {
-			isSiteAvailable(linkToSite);
+	private List<String> parseContentByDefinedTags(String startTag, String endTag, String content) {
+		List<String> dataBetweenTags = new ArrayList<>();
+
+		String[] splittedContentByTag = content.split(startTag);
+		for (String eachSplittedPart : splittedContentByTag) {
+			dataBetweenTags.add(eachSplittedPart.split(endTag)[0]);
+		}
+		dataBetweenTags.remove(0);
+		return dataBetweenTags;
+	}
+
+	public List<String> getAllLinksFromSite(String site) {
+		List<String> allLinksOnSite = new ArrayList<>();
+		if (!isSiteAvailable(site)) {
+			return null;
+		}
+
+		String siteContent = getSiteContent(site);
+
+		for (String link : parseContentByDefinedTags("href=\"", "\"", siteContent)) {
+			if (link.startsWith("/")) {
+				allLinksOnSite.add(siteProtocol + "://" + siteHost + link);
+			} else {
+				allLinksOnSite.add(link);
+			}
+		}
+
+		return allLinksOnSite;
+	}
+
+	public void putListToFile(List<String> list, String filePath) {
+		try (PrintWriter pw = new PrintWriter(filePath)) {
+			for (String eachLineOfFile : list) {
+				pw.write(eachLineOfFile);
+				pw.write(System.lineSeparator());
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
 		}
 	}
+
 }
